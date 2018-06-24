@@ -1,7 +1,9 @@
 [package]
 name = "sudoku-ffi"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Emerentius <emerentius@arcor.de>"]
+readme = "README.md"
+license = "MIT/Apache2"
 
 [dependencies]
 sudoku = "0.6.2"
