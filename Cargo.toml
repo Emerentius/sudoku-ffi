@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Emerentius <emerentius@arcor.de>"]
 
 [dependencies]
-sudoku = version = "0.6"
+sudoku = "0.6.2"
 libc = "0.2.41"
 
 [lib]

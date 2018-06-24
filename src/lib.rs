@@ -1,3 +1,4 @@
+extern crate core;
 extern crate sudoku;
 extern crate libc;
 use sudoku::Sudoku as RSudoku;
@@ -6,7 +7,7 @@ use libc::size_t;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct Sudoku([u8; 81]);
+pub struct Sudoku(pub [u8; 81]);
 
 impl Sudoku {
     fn from_rust_sudoku(sudoku: sudoku::Sudoku) -> Sudoku {
@@ -53,12 +54,13 @@ pub unsafe extern "C" fn sudoku_count_at_most(n_found: *mut size_t, sudoku: Sudo
     true
 }
 
-/// Finds up to `limit` solutions and writes them into `solutions_buf`. Naturally, solutions_buf must be large enough to hold
-/// at least `limit` `Sudoku`s or the buffer will be overflown. Writes number of found solutions into `n_found`.
+/// Finds and counts up to `limit` solutions and writes them into `solutions_buf` up to its capacity of `len_buf`.
+/// Any additional solutions `> len_buf` but `<= limit` will be counted but not saved.
+/// The number of found solutions is stored in `n_found`.
 ///
 /// Immediately returns false if `solutions_buf` or `n_found` is null or the sudoku is invalid, otherwise `true`.
 #[no_mangle]
-pub unsafe extern "C" fn sudoku_solve_at_most(mut solutions_buf: *mut Sudoku, n_found: *mut size_t, sudoku: Sudoku, limit: size_t) -> bool {
+pub unsafe extern "C" fn sudoku_solve_at_most(solutions_buf: *mut Sudoku, n_found: *mut size_t, len_buf: size_t, sudoku: Sudoku, limit: size_t) -> bool {
     if solutions_buf.is_null() || n_found.is_null() {
         return false;
     }
@@ -66,12 +68,8 @@ pub unsafe extern "C" fn sudoku_solve_at_most(mut solutions_buf: *mut Sudoku, n_
         Some(s) => s,
         None => return false,
     };
-    let solutions = sudoku.solve_at_most(limit);
-    for &solution in &solutions {
-        *solutions_buf = Sudoku::from_rust_sudoku(solution);
-        solutions_buf = solutions_buf.add(1);
-    }
-    *n_found = solutions.len();
+    let target = core::slice::from_raw_parts_mut(solutions_buf as *mut [u8; 81], len_buf);
+    *n_found = sudoku.solve_at_most_buffer(target, limit);
     true
 }
 
