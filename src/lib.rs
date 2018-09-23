@@ -2,6 +2,16 @@ extern crate core;
 extern crate sudoku;
 extern crate libc;
 use sudoku::Sudoku as RSudoku;
+use sudoku::strategy::{
+    Strategy as RStrategy,
+    StrategySolver as RStrategySolver,
+    //Deduction as RDeduction,
+    //DeductionResult as RDeductionResult,
+    Deductions as RDeductions,
+    Entry as REntry,
+    CellState,
+    //DeductionsIter
+};
 
 use libc::size_t;
 
@@ -12,6 +22,71 @@ use libc::size_t;
 /// uniquely solvable.
 pub struct Sudoku([u8; 81]);
 
+pub enum _StrategySolver {}
+pub enum _Deductions {}
+pub enum _Deduction {}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct Entry {
+    cell: u8,
+    num: u8,
+}
+
+impl core::convert::From<REntry> for Entry {
+    fn from(entry: REntry) -> Self {
+        let num = entry.num();
+        let cell = entry.cell() as u8;
+        Entry { cell, num }
+    }
+}
+
+impl core::convert::From<Entry> for REntry {
+    fn from(Entry { cell, num }: Entry) -> Self {
+        REntry::new(cell, num)
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct StrategySolver(*mut _StrategySolver);
+
+#[repr(C)]
+pub struct StrategySolvingResult {
+    pub is_solved: bool,
+    pub sudoku: Sudoku,
+    pub deductions: Deductions,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Deductions(*mut _Deductions);
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Deduction(*const _Deduction);
+
+#[repr(C, u8)]
+#[derive(Clone, Copy)]
+pub enum Strategy {
+    NakedSingles,
+    HiddenSingles,
+    LockedCandidates,
+	NakedPairs,
+	NakedTriples,
+	NakedQuads,
+	HiddenPairs,
+	HiddenTriples,
+	HiddenQuads,
+    XWing,
+    Swordfish,
+    Jellyfish,
+    SinglesChain,
+    // chosen because it's the maximum for an 8bit number
+    // the memory layout for this enum may change in the future
+    UnknownStrategy = 255,
+}
+
 impl Sudoku {
     fn from_rust_sudoku(sudoku: sudoku::Sudoku) -> Sudoku {
         Sudoku(sudoku.to_bytes())
@@ -21,8 +96,65 @@ impl Sudoku {
         RSudoku::from_bytes(self.0).unwrap()
     }
 }
+
+impl Strategy {
+    /*
+    fn from_rstrategy(strat: RStrategy) -> Self {
+        use Strategy::*;
+        match strat {
+            RStrategy::NakedSingles => NakedSingles,
+            RStrategy::HiddenSingles => HiddenSingles,
+            RStrategy::LockedCandidates => NakedSingles,
+            RStrategy::NakedPairs => NakedSingles,
+            RStrategy::NakedTriples => NakedSingles,
+            RStrategy::NakedQuads => NakedSingles,
+            RStrategy::HiddenPairs => NakedSingles,
+            RStrategy::HiddenTriples => NakedSingles,
+            RStrategy::HiddenQuads => NakedSingles,
+            RStrategy::XWing => NakedSingles,
+            RStrategy::Swordfish => NakedSingles,
+            RStrategy::Jellyfish => NakedSingles,
+            RStrategy::SinglesChain => NakedSingles,
+            RStrategy::__NonExhaustive => UnknownStrategy,
+        }
+    }
+    */
+
+    // TODO: How should UnknownStrategy be handled?
+    fn to_rstrategy(self) -> RStrategy {
+        use Strategy::*;
+        match self {
+            NakedSingles => RStrategy::NakedSingles,
+            HiddenSingles => RStrategy::HiddenSingles,
+            LockedCandidates => RStrategy::NakedSingles,
+            NakedPairs => RStrategy::NakedSingles,
+            NakedTriples => RStrategy::NakedSingles,
+            NakedQuads => RStrategy::NakedSingles,
+            HiddenPairs => RStrategy::NakedSingles,
+            HiddenTriples => RStrategy::NakedSingles,
+            HiddenQuads => RStrategy::NakedSingles,
+            XWing => RStrategy::NakedSingles,
+            Swordfish => RStrategy::NakedSingles,
+            Jellyfish => RStrategy::NakedSingles,
+            SinglesChain => RStrategy::NakedSingles,
+            UnknownStrategy => RStrategy::__NonExhaustive,
+        }
     }
 }
+
+impl StrategySolver {
+    fn as_rsolver(self) -> *mut RStrategySolver {
+        self.0 as *mut RStrategySolver
+    }
+}
+
+/*
+impl Deductions {
+    fn as_rdeductions(self) -> *mut RDeductions {
+        self.0 as *mut RDeductions
+    }
+}
+*/
 
 /// Creates a sudoku from an array of 81 bytes. All numbers must be below 10.
 /// Empty cells are denoted by 0, clues by the numbers 1-9.
@@ -105,4 +237,88 @@ pub unsafe extern "C" fn shuffle(sudoku: *mut Sudoku) {
     let mut sudoku = ref_mut.to_rust_sudoku();
     sudoku.shuffle();
     *ref_mut = Sudoku::from_rust_sudoku(sudoku);
+}
+
+#[no_mangle]
+pub extern "C" fn strategy_solver_new(sudoku: Sudoku) -> StrategySolver {
+    let sudoku = sudoku.to_rust_sudoku();
+    let ss = RStrategySolver::from_sudoku(sudoku);
+    let ptr = Box::into_raw(Box::new(ss)) as *mut _StrategySolver;
+    StrategySolver(ptr)
+}
+
+/// This function is not threadsafe
+#[no_mangle]
+pub unsafe extern "C" fn strategy_solver_to_sudoku(solver: StrategySolver) -> Sudoku {
+    Sudoku::from_rust_sudoku(
+        (*solver.as_rsolver()).to_sudoku()
+    )
+}
+
+/// This consumes the solver
+#[no_mangle]
+pub extern "C" fn strategy_solver_solve(solver: StrategySolver, strategies: *const Strategy, len: size_t) -> StrategySolvingResult {
+    let solver = solver.as_rsolver();
+    let solver = unsafe { Box::from_raw(solver) };
+
+    let strategies = unsafe { core::slice::from_raw_parts(strategies, len) };
+    let strategies = strategies.iter().cloned().map(Strategy::to_rstrategy).collect::<Vec<_>>();
+
+    let result = solver.solve(&strategies);
+
+    let is_solved = result.is_ok();
+    let (sudoku, deductions) = result.unwrap_or_else(|x| x);
+    let ptr = Box::into_raw(Box::new(deductions)) as *mut _;
+
+    StrategySolvingResult {
+        is_solved,
+        sudoku: Sudoku::from_rust_sudoku(sudoku),
+        deductions: Deductions(ptr)
+    }
+}
+
+/// Try to insert `entry`.
+///
+/// Returns `false` if the cell is already filled, `true` otherwise.
+#[no_mangle]
+pub extern "C" fn strategy_solver_insert_entry(solver: StrategySolver, entry: Entry) -> bool {
+    let solver = solver.as_rsolver();
+    let solver = unsafe { &mut *solver };
+
+    let result = solver.insert_entry(entry.into());
+    result.is_ok()
+}
+
+/// Returns the remaining possible candidates in `cell` as a 9-bit mask. The nth bit stands for the nth digit,
+/// counting from lowest to most significant bit.
+///
+/// It's undefined behaviour to call this on an already filled cell or with `cell > 80`.
+#[no_mangle]
+pub extern "C" fn strategy_solver_cell_candidates(solver: StrategySolver, cell: u8) -> u16 {
+    let solver = solver.as_rsolver();
+    let solver = unsafe { &mut *solver };
+
+    match solver.cell_state(cell) {
+        CellState::Number(_) => unimplemented!(),
+        CellState::Candidates(mask) => mask.0,
+    }
+}
+
+
+#[no_mangle]
+pub extern "C" fn deductions_len(deductions: Deductions) -> size_t {
+    unsafe {
+        (&*(deductions.0 as *mut RDeductions)).len()
+    }
+}
+
+/// Indexing past bounds is Undefined Behaviour.
+#[no_mangle]
+pub unsafe extern "C" fn deductions_get(deductions: Deductions, idx: size_t) -> Deduction {
+    let deductions = &*(deductions.0 as *mut RDeductions);
+    let deduction = deductions.get(idx).unwrap();
+
+    let ptr = Box::into_raw(Box::new(deduction));
+    Deduction(ptr as *const _)
+
 }

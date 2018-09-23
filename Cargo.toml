@@ -6,8 +6,12 @@ readme = "README.md"
 license = "MIT/Apache2"
 
 [dependencies]
-sudoku = "0.6.2"
 libc = "0.2.41"
+
+[dependencies.sudoku]
+version = "0.6.2"
+git = "https://github.com/emerentius/sudoku"
+branch = "strategy_solver"
 
 [lib]
 crate-type = ["cdylib"]
