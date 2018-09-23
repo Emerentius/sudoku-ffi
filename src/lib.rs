@@ -7,16 +7,43 @@ use libc::size_t;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct Sudoku(pub [u8; 81]);
+/// The central structure of the library. Represents a classical 9x9 sudoku.
+/// All instances of this MUST be valid sudoku grids, but not necessarily solvable or
+/// uniquely solvable.
+pub struct Sudoku([u8; 81]);
 
 impl Sudoku {
     fn from_rust_sudoku(sudoku: sudoku::Sudoku) -> Sudoku {
         Sudoku(sudoku.to_bytes())
     }
 
-    fn to_rust_sudoku(self) -> Option<RSudoku> {
-        RSudoku::from_bytes(self.0).ok()
+    fn to_rust_sudoku(self) -> RSudoku {
+        RSudoku::from_bytes(self.0).unwrap()
     }
+}
+    }
+}
+
+/// Creates a sudoku from an array of 81 bytes. All numbers must be below 10.
+/// Empty cells are denoted by 0, clues by the numbers 1-9.
+/// If any cell contains invalid entries, an empty sudoku will be returned.
+#[no_mangle]
+pub unsafe extern "C" fn sudoku_from_bytes(bytes: *const u8) -> Sudoku {
+    let slice = core::slice::from_raw_parts(bytes, 81);
+    let mut bytes = [0; 81];
+    bytes.copy_from_slice(slice);
+
+    match RSudoku::from_bytes(bytes) {
+        Ok(sudoku) => Sudoku::from_rust_sudoku(sudoku),
+        Err(_) => Sudoku([0; 81]),
+    }
+}
+
+/// Returns a pointer to the bytes of the sudoku.
+/// Empty cells are denoted by 0, clues by the numbers 1-9
+#[no_mangle]
+pub extern "C" fn sudoku_as_ptr(sudoku: *const Sudoku) -> *const u8 {
+    sudoku as *const _
 }
 
 /// Generates a random, valid, solved `Sudoku`.
@@ -38,66 +65,44 @@ pub extern "C" fn sudoku_is_valid_grid(sudoku: Sudoku) -> bool {
     RSudoku::from_bytes(sudoku.0).is_ok()
 }
 
-/// Counts sudoku solutions up to `limit` and writes how many were found into `n_found`.
-///
-/// Returns false if `sudoku` is invalid or `n_found` is null.
+/// Counts sudoku solutions up to `limit`
 #[no_mangle]
-pub unsafe extern "C" fn sudoku_count_at_most(n_found: *mut size_t, sudoku: Sudoku, limit: size_t) -> bool {
-    if n_found.is_null() {
-        return false;
-    }
-    let sudoku = match sudoku.to_rust_sudoku() {
-        Some(s) => s,
-        None => return false,
-    };
-    *n_found = sudoku.count_at_most(limit);
-    true
+pub unsafe extern "C" fn sudoku_count_at_most(sudoku: Sudoku, limit: size_t) -> size_t {
+    let sudoku = sudoku.to_rust_sudoku();
+    sudoku.count_at_most(limit)
 }
 
 /// Finds and counts up to `limit` solutions and writes them into `solutions_buf` up to its capacity of `len_buf`.
 /// Any additional solutions `> len_buf` but `<= limit` will be counted but not saved.
 /// The number of found solutions is stored in `n_found`.
 ///
-/// Immediately returns false if `solutions_buf` or `n_found` is null or the sudoku is invalid, otherwise `true`.
+/// Immediately returns `false` if `solutions_buf` or `n_found` is null, otherwise `true`.
 #[no_mangle]
 pub unsafe extern "C" fn sudoku_solve_at_most(solutions_buf: *mut Sudoku, n_found: *mut size_t, len_buf: size_t, sudoku: Sudoku, limit: size_t) -> bool {
     if solutions_buf.is_null() || n_found.is_null() {
         return false;
     }
-    let sudoku = match sudoku.to_rust_sudoku() {
-        Some(s) => s,
-        None => return false,
-    };
+    let sudoku = sudoku.to_rust_sudoku();
     let target = core::slice::from_raw_parts_mut(solutions_buf as *mut [u8; 81], len_buf);
     *n_found = sudoku.solve_at_most_buffer(target, limit);
     true
 }
 
 /// Checks whether the sudoku is solved, i.e. completely filled in a valid way.
-///
-/// Returns false if the sudoku contains invalid numbers above 9. Use `sudoku_is_valid_grid` if correct
-/// value range is not guaranteed.
 #[no_mangle]
 pub extern "C" fn sudoku_is_solved(sudoku: Sudoku) -> bool {
-    sudoku.to_rust_sudoku()
-        .map_or(false, |sudoku| sudoku.is_solved())
+    sudoku.to_rust_sudoku().is_solved()
 }
 
 /// Performs symmetry transformations that result in a different sudoku
 /// with the same solution count and difficulty.
-///
-/// Returns `false` if a null pointer or a pointer to an invalid sudoku is passed, otherwise `true`.
 #[no_mangle]
-pub unsafe extern "C" fn shuffle(sudoku: *mut Sudoku) -> bool {
+pub unsafe extern "C" fn shuffle(sudoku: *mut Sudoku) {
     let ref_mut = match sudoku.as_mut() {
         Some(ref_mut) => ref_mut,
-        None => return false,
+        None => return,
     };
-    let mut sudoku = match ref_mut.to_rust_sudoku() {
-        Some(s) => s,
-        None => return false,
-    };
+    let mut sudoku = ref_mut.to_rust_sudoku();
     sudoku.shuffle();
     *ref_mut = Sudoku::from_rust_sudoku(sudoku);
-    true
 }
