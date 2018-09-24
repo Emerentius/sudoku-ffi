@@ -14,4 +14,4 @@ git = "https://github.com/emerentius/sudoku"
 branch = "strategy_solver"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "staticlib"]
