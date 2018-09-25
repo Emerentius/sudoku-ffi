@@ -1,1 +1,2 @@
+include_guard = "sudoku_ffi_h"
 language = "C++"

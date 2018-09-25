@@ -1,3 +1,6 @@
+#ifndef sudoku_ffi_h
+#define sudoku_ffi_h
+
 #include <cstdint>
 #include <cstdlib>
 
@@ -124,3 +127,5 @@ bool sudoku_solve_at_most(Sudoku *solutions_buf,
                           size_t limit);
 
 } // extern "C"
+
+#endif // sudoku_ffi_h
