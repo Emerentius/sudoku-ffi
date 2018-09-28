@@ -25,7 +25,21 @@ struct _Deduction;
 
 struct _Deductions;
 
+struct _Entry;
+
 struct _StrategySolver;
+
+struct Entry {
+  uint8_t cell;
+  uint8_t num;
+};
+
+struct DeductionResult {
+  bool is_forced;
+  Entry entry;
+  const _Entry *eliminated_ptr;
+  size_t len;
+};
 
 struct Deduction {
   const _Deduction *_0;
@@ -46,11 +60,6 @@ struct StrategySolver {
   _StrategySolver *_0;
 };
 
-struct Entry {
-  uint8_t cell;
-  uint8_t num;
-};
-
 struct StrategySolvingResult {
   bool is_solved;
   Sudoku sudoku;
@@ -58,6 +67,14 @@ struct StrategySolvingResult {
 };
 
 extern "C" {
+
+Entry deduction_result_get_eliminated_entry(DeductionResult results, size_t idx);
+
+Entry deduction_result_get_forced_entry(DeductionResult results);
+
+size_t deduction_result_len(DeductionResult results);
+
+DeductionResult deduction_results(Deduction deduction);
 
 // Indexing past bounds is Undefined Behaviour.
 Deduction deductions_get(Deductions deductions, size_t idx);

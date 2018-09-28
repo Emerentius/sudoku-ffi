@@ -5,8 +5,8 @@ use sudoku::Sudoku as RSudoku;
 use sudoku::strategy::{
     Strategy as RStrategy,
     StrategySolver as RStrategySolver,
-    //Deduction as RDeduction,
-    //DeductionResult as RDeductionResult,
+    Deduction as RDeduction,
+    DeductionResult as RDeductionResult,
     Deductions as RDeductions,
     Entry as REntry,
     CellState,
@@ -25,6 +25,8 @@ pub struct Sudoku([u8; 81]);
 pub enum _StrategySolver {}
 pub enum _Deductions {}
 pub enum _Deduction {}
+pub enum _DeductionResult {}
+pub enum _Entry {}
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -65,6 +67,15 @@ pub struct Deductions(*mut _Deductions);
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Deduction(*const _Deduction);
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DeductionResult {
+    is_forced: bool,
+    entry: Entry, // if is_forced
+    eliminated_ptr: *const _Entry,
+    len: size_t,
+}
 
 #[repr(C, u8)]
 #[derive(Clone, Copy)]
@@ -148,13 +159,17 @@ impl StrategySolver {
     }
 }
 
-/*
 impl Deductions {
     fn as_rdeductions(self) -> *mut RDeductions {
         self.0 as *mut RDeductions
     }
 }
-*/
+
+impl Deduction {
+    fn as_rdeduction<'a>(self) -> *mut RDeduction<'a> {
+        self.0 as *mut RDeduction
+    }
+}
 
 /// Creates a sudoku from an array of 81 bytes. All numbers must be below 10.
 /// Empty cells are denoted by 0, clues by the numbers 1-9.
@@ -308,17 +323,56 @@ pub extern "C" fn strategy_solver_cell_candidates(solver: StrategySolver, cell: 
 #[no_mangle]
 pub extern "C" fn deductions_len(deductions: Deductions) -> size_t {
     unsafe {
-        (&*(deductions.0 as *mut RDeductions)).len()
+        (&*deductions.as_rdeductions()).len()
     }
 }
 
 /// Indexing past bounds is Undefined Behaviour.
 #[no_mangle]
 pub unsafe extern "C" fn deductions_get(deductions: Deductions, idx: size_t) -> Deduction {
-    let deductions = &*(deductions.0 as *mut RDeductions);
+    let deductions = &*deductions.as_rdeductions();
     let deduction = deductions.get(idx).unwrap();
 
     let ptr = Box::into_raw(Box::new(deduction));
     Deduction(ptr as *const _)
+}
 
+#[no_mangle]
+pub extern "C" fn deduction_results(deduction: Deduction) -> DeductionResult {
+    let result = unsafe { (&*deduction.as_rdeduction()).results() };
+    match result {
+        RDeductionResult::Forced(entry) => {
+            DeductionResult {
+                is_forced: true,
+                entry: entry.into(),
+                eliminated_ptr: std::ptr::null_mut(),
+                len: 0,
+            }
+        }
+        RDeductionResult::Eliminated(slice) => {
+            DeductionResult {
+                is_forced: false,
+                entry: Entry { cell: 0, num: 0 }, // invalid
+                eliminated_ptr: slice.as_ptr() as *const _Entry,
+                len: slice.len(),
+            }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn deduction_result_len(results: DeductionResult) -> libc::size_t {
+    if results.is_forced { 1 } else { results.len }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn deduction_result_get_forced_entry(results: DeductionResult) -> Entry {
+    results.entry
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn deduction_result_get_eliminated_entry(results: DeductionResult, idx: libc::size_t) -> Entry {
+    let eliminated = results.eliminated_ptr as *mut REntry;
+    let slice = core::slice::from_raw_parts(eliminated, results.len);
+    slice[idx].into()
 }
