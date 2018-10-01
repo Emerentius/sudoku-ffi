@@ -108,9 +108,8 @@ impl Sudoku {
     }
 }
 
-impl Strategy {
-    /*
-    fn from_rstrategy(strat: RStrategy) -> Self {
+impl From<RStrategy> for Strategy {
+    fn from(strat: RStrategy) -> Self {
         use Strategy::*;
         match strat {
             RStrategy::NakedSingles => NakedSingles,
@@ -129,12 +128,13 @@ impl Strategy {
             RStrategy::__NonExhaustive => UnknownStrategy,
         }
     }
-    */
+}
 
+impl From<Strategy> for RStrategy {
     // TODO: How should UnknownStrategy be handled?
-    fn to_rstrategy(self) -> RStrategy {
+    fn from(strat: Strategy) -> RStrategy {
         use Strategy::*;
-        match self {
+        match strat {
             NakedSingles => RStrategy::NakedSingles,
             HiddenSingles => RStrategy::HiddenSingles,
             LockedCandidates => RStrategy::NakedSingles,
@@ -277,7 +277,7 @@ pub extern "C" fn strategy_solver_solve(solver: StrategySolver, strategies: *con
     let solver = unsafe { Box::from_raw(solver) };
 
     let strategies = unsafe { core::slice::from_raw_parts(strategies, len) };
-    let strategies = strategies.iter().cloned().map(Strategy::to_rstrategy).collect::<Vec<_>>();
+    let strategies = strategies.iter().cloned().map(RStrategy::from).collect::<Vec<_>>();
 
     let result = solver.solve(&strategies);
 
@@ -335,6 +335,12 @@ pub unsafe extern "C" fn deductions_get(deductions: Deductions, idx: size_t) -> 
 
     let ptr = Box::into_raw(Box::new(deduction));
     Deduction(ptr as *const _)
+}
+
+#[no_mangle]
+pub extern "C" fn deduction_strategy(deduction: Deduction) -> Strategy {
+    let strategy = unsafe { (&*deduction.as_rdeduction()).strategy() };
+    strategy.into()
 }
 
 #[no_mangle]
