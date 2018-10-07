@@ -4,6 +4,23 @@
 #include <cstdint>
 #include <cstdlib>
 
+enum class DeductionTag {
+  Given,
+  NakedSingle,
+  HiddenSingle,
+  LockedCandidates,
+  NakedSubset,
+  HiddenSubset,
+  BasicFish,
+  SinglesChain,
+};
+
+enum class HouseType {
+  Row,
+  Col,
+  Block,
+};
+
 enum class Strategy : uint8_t {
   NakedSingles,
   HiddenSingles,
@@ -18,15 +35,92 @@ enum class Strategy : uint8_t {
   Swordfish,
   Jellyfish,
   SinglesChain,
-  UnknownStrategy = 255,
 };
 
 struct _Deductions;
 
+struct _RCandidate;
+
 struct _StrategySolver;
+
+struct Candidate {
+  uint8_t cell;
+  uint8_t num;
+};
+
+struct Conflicts {
+  const _RCandidate *ptr;
+  size_t len;
+};
+
+struct Given {
+  Candidate candidate;
+};
+
+struct NakedSingle {
+  Candidate candidate;
+};
+
+struct HiddenSingle {
+  Candidate candidate;
+  HouseType house_type;
+};
+
+using Mask16 = uint16_t;
+
+struct LockedCandidates {
+  uint8_t miniline;
+  Mask16 digits;
+  Conflicts conflicts;
+};
+
+struct NakedSubsets {
+  uint8_t house;
+  Mask16 positions;
+  Mask16 digits;
+  Conflicts conflicts;
+};
+
+struct HiddenSubsets {
+  uint8_t house;
+  Mask16 digits;
+  Mask16 positions;
+  Conflicts conflicts;
+};
+
+struct BasicFish {
+  Mask16 lines;
+  Mask16 positions;
+  uint8_t digit;
+  Conflicts conflicts;
+};
+
+struct SinglesChain {
+  Conflicts conflicts;
+};
+
+union DeductionData {
+  Given given;
+  NakedSingle naked_single;
+  HiddenSingle hidden_single;
+  LockedCandidates locked_candidates;
+  NakedSubsets naked_subsets;
+  HiddenSubsets hidden_subsets;
+  BasicFish basic_fish;
+  SinglesChain singles_chain;
+};
+
+struct Deduction {
+  DeductionTag tag;
+  DeductionData data;
+};
 
 struct Deductions {
   _Deductions *_0;
+};
+
+struct StrategySolver {
+  _StrategySolver *_0;
 };
 
 // The central structure of the library. Represents a classical 9x9 sudoku.
@@ -34,15 +128,6 @@ struct Deductions {
 // uniquely solvable.
 struct Sudoku {
   uint8_t _0[81];
-};
-
-struct StrategySolver {
-  _StrategySolver *_0;
-};
-
-struct Candidate {
-  uint8_t cell;
-  uint8_t num;
 };
 
 struct StrategySolvingResult {
@@ -53,11 +138,13 @@ struct StrategySolvingResult {
 
 extern "C" {
 
-size_t deductions_len(Deductions deductions);
+Candidate conflicts_get(Conflicts conflicts, size_t idx);
 
-// Performs symmetry transformations that result in a different sudoku
-// with the same solution count and difficulty.
-void shuffle(Sudoku *sudoku);
+size_t conflicts_len(Conflicts conflicts);
+
+Deduction deductions_get(Deductions deductions, size_t idx);
+
+size_t deductions_len(Deductions deductions);
 
 // Returns the remaining possible candidates in `cell` as a 9-bit mask. The nth bit stands for the nth digit,
 // counting from lowest to most significant bit.
@@ -105,6 +192,10 @@ bool sudoku_is_solved(Sudoku sudoku);
 // Checks that all cells contain values from 0-9 (inclusive)
 // (Unique) solvability is not tested.
 bool sudoku_is_valid_grid(Sudoku sudoku);
+
+// Performs symmetry transformations that result in a different sudoku
+// with the same solution count and difficulty.
+void sudoku_shuffle(Sudoku *sudoku);
 
 // Finds and counts up to `limit` solutions and writes them into `solutions_buf` up to its capacity of `len_buf`.
 // Any additional solutions `> len_buf` but `<= limit` will be counted but not saved.

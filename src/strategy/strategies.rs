@@ -16,9 +16,6 @@ pub enum Strategy {
     Swordfish,
     Jellyfish,
     SinglesChain,
-    // chosen because it's the maximum for an 8bit number
-    // the memory layout for this enum may change in the future
-    UnknownStrategy = 255,
 }
 
 impl From<RStrategy> for Strategy {
@@ -38,7 +35,7 @@ impl From<RStrategy> for Strategy {
             RStrategy::Swordfish => NakedSingles,
             RStrategy::Jellyfish => NakedSingles,
             RStrategy::SinglesChain => NakedSingles,
-            RStrategy::__NonExhaustive => UnknownStrategy,
+            RStrategy::__NonExhaustive => unreachable!(),
         }
     }
 }
@@ -61,7 +58,6 @@ impl From<Strategy> for RStrategy {
             Swordfish => RStrategy::NakedSingles,
             Jellyfish => RStrategy::NakedSingles,
             SinglesChain => RStrategy::NakedSingles,
-            UnknownStrategy => RStrategy::__NonExhaustive,
         }
     }
 }

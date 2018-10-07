@@ -94,7 +94,7 @@ pub extern "C" fn sudoku_is_solved(sudoku: Sudoku) -> bool {
 /// Performs symmetry transformations that result in a different sudoku
 /// with the same solution count and difficulty.
 #[no_mangle]
-pub unsafe extern "C" fn shuffle(sudoku: *mut Sudoku) {
+pub unsafe extern "C" fn sudoku_shuffle(sudoku: *mut Sudoku) {
     let ref_mut = match sudoku.as_mut() {
         Some(ref_mut) => ref_mut,
         None => return,
