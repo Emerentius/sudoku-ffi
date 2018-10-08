@@ -172,9 +172,10 @@ pub struct LockedCandidates {
 
 // bitmask
 type Mask16 = u16;
+type Mask32 = u32;
 
 // as_index() isn't on a trait, so these need two functions for now
-fn mask_of_digits(set: Set<Digit>) -> u16 {
+fn mask_of_digits(set: Set<Digit>) -> Mask16 {
     let mut mask = 0;
     for digit in set {
         mask |= 1 << digit.as_index();
@@ -182,7 +183,7 @@ fn mask_of_digits(set: Set<Digit>) -> u16 {
     mask
 }
 
-fn mask_of_positions_house(set: Set<Position<House>>) -> u16 {
+fn mask_of_positions_house(set: Set<Position<House>>) -> Mask16 {
     let mut mask = 0;
     for position in set {
         mask |= 1 << position.as_index();
@@ -190,7 +191,7 @@ fn mask_of_positions_house(set: Set<Position<House>>) -> u16 {
     mask
 }
 
-fn mask_of_positions_line(set: Set<Position<Line>>) -> u16 {
+fn mask_of_positions_line(set: Set<Position<Line>>) -> Mask16 {
     let mut mask = 0;
     for position in set {
         mask |= 1 << position.as_index();
@@ -198,7 +199,7 @@ fn mask_of_positions_line(set: Set<Position<Line>>) -> u16 {
     mask
 }
 
-fn mask_of_lines(set: Set<Line>) -> u16 {
+fn mask_of_lines(set: Set<Line>) -> Mask32 {
     let mut mask = 0;
     for line in set {
         mask |= 1 << line.as_index();
@@ -227,7 +228,7 @@ pub struct HiddenSubsets {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct BasicFish {
-    lines: Mask16,
+    lines: Mask32,
     positions: Mask16,
     digit: u8,
     conflicts: Conflicts,

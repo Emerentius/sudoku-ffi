@@ -88,8 +88,10 @@ struct HiddenSubsets {
   Conflicts conflicts;
 };
 
+using Mask32 = uint32_t;
+
 struct BasicFish {
-  Mask16 lines;
+  Mask32 lines;
   Mask16 positions;
   uint8_t digit;
   Conflicts conflicts;
