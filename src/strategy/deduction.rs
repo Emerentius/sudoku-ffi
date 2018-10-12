@@ -40,12 +40,13 @@ impl<'a> From<RDeduction<&'a [RCandidate]>> for Deduction {
                     }
                 };
             }
-            LockedCandidates(miniline, digits, conflicts) => {
+            LockedCandidates { miniline, digit, is_pointing, conflicts } => {
                 tag = DeductionTag::LockedCandidates;
                 data = DeductionData {
                     locked_candidates: self::LockedCandidates {
                         miniline: miniline.get(),
-                        digits: mask_of_digits(digits),
+                        digit: digit.get(),
+                        is_pointing,
                         conflicts: conflicts.into(),
                     }
                 };
@@ -166,7 +167,8 @@ impl From<RHouseType> for HouseType {
 #[derive(Clone, Copy)]
 pub struct LockedCandidates {
     miniline: u8,
-    digits: Mask16,
+    digit: u8,
+    is_pointing: bool,
     conflicts: Conflicts,
 }
 

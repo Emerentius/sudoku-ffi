@@ -11,8 +11,7 @@ libc = "0.2.41"
 [dependencies.sudoku]
 version = "0.6.2"
 git = "https://github.com/emerentius/sudoku"
-rev = "f14bcdff0fe0cc26af6df0c62bed76565687fa21"
-#branch = "strategy_solver"
+rev = "58a18d50bad359846d4c2d9f862398772a0c20d1"
 
 [lib]
 crate-type = ["cdylib", "staticlib"]
