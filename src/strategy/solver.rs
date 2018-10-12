@@ -112,18 +112,18 @@ pub extern "C" fn strategy_solver_insert_entry(solver: StrategySolver, entry: Ca
 ///
 /// It's undefined behaviour to call this on an already filled cell or with `cell > 80`.
 #[no_mangle]
-pub extern "C" fn strategy_solver_cell_state(solver: StrategySolver, cell: u8) -> CellState {
+pub extern "C" fn strategy_solver_cell_candidates(solver: StrategySolver, cell: u8) -> Mask16 {
     let solver = solver.as_rsolver();
     let solver = unsafe { &mut *solver };
 
     match solver.cell_state(Cell::new(cell)) {
-        RCellState::Digit(digit) => CellState::Digit(digit.get()),
+        RCellState::Digit(digit) => unimplemented!(),
         RCellState::Candidates(candidates) => {
             let mut mask = 0;
             for digit in candidates {
                 mask |= 1 << digit.get() - 1;
             }
-            CellState::Candidates(mask)
+            mask
         },
     }
 }

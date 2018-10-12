@@ -122,6 +122,10 @@ struct Deductions {
   _Deductions *_0;
 };
 
+struct StrategySolver {
+  _StrategySolver *_0;
+};
+
 struct CellState {
   enum class Tag {
     Digit,
@@ -141,10 +145,6 @@ struct CellState {
     Digit_Body digit;
     Candidates_Body candidates;
   };
-};
-
-struct StrategySolver {
-  _StrategySolver *_0;
 };
 
 struct GridState {
@@ -178,8 +178,8 @@ size_t deductions_len(Deductions deductions);
 // counting from lowest to most significant bit.
 //
 // It's undefined behaviour to call this on an already filled cell or with `cell > 80`.
-CellState strategy_solver_cell_state(StrategySolver solver,
-                                     uint8_t cell);
+Mask16 strategy_solver_cell_candidates(StrategySolver solver,
+                                       uint8_t cell);
 
 StrategySolver strategy_solver_from_grid_state(GridState grid_state);
 
