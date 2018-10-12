@@ -1,11 +1,13 @@
 use ::sudoku::{
+    bitset::Set,
     strategy::{
         StrategySolver as RStrategySolver,
         Strategy as RStrategy,
     },
     board::{
+        Digit,
         Cell,
-        CellState,
+        CellState as RCellState,
     }
 };
 use ::libc::size_t;
@@ -45,6 +47,20 @@ impl StrategySolver {
 pub extern "C" fn strategy_solver_new(sudoku: Sudoku) -> StrategySolver {
     let sudoku = sudoku.to_rust_sudoku();
     let ss = RStrategySolver::from_sudoku(sudoku);
+    let ptr = Box::into_raw(Box::new(ss)) as *mut _StrategySolver;
+    StrategySolver(ptr)
+}
+
+#[no_mangle]
+pub extern "C" fn strategy_solver_from_grid_state(grid_state: GridState) -> StrategySolver {
+    let mut rust_grid_state = [RCellState::Candidates(sudoku::bitset::Set::NONE); 81];
+    for (rust_state, &state) in rust_grid_state.iter_mut().zip(grid_state.grid.iter()) {
+        *rust_state = match state {
+            CellState::Digit(dig) => RCellState::Digit(Digit::new(dig)),
+            CellState::Candidates(mask) => RCellState::Candidates(Set::from_bits(mask)),
+        };
+    }
+    let ss = RStrategySolver::from_grid_state(rust_grid_state);
     let ptr = Box::into_raw(Box::new(ss)) as *mut _StrategySolver;
     StrategySolver(ptr)
 }
@@ -96,18 +112,33 @@ pub extern "C" fn strategy_solver_insert_entry(solver: StrategySolver, entry: Ca
 ///
 /// It's undefined behaviour to call this on an already filled cell or with `cell > 80`.
 #[no_mangle]
-pub extern "C" fn strategy_solver_cell_candidates(solver: StrategySolver, cell: u8) -> u16 {
+pub extern "C" fn strategy_solver_cell_state(solver: StrategySolver, cell: u8) -> CellState {
     let solver = solver.as_rsolver();
     let solver = unsafe { &mut *solver };
 
     match solver.cell_state(Cell::new(cell)) {
-        CellState::Digit(_) => unimplemented!(),
-        CellState::Candidates(candidates) => {
+        RCellState::Digit(digit) => CellState::Digit(digit.get()),
+        RCellState::Candidates(candidates) => {
             let mut mask = 0;
             for digit in candidates {
                 mask |= 1 << digit.get() - 1;
             }
-            mask
+            CellState::Candidates(mask)
         },
     }
+}
+
+type Mask16 = u16;
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub enum CellState {
+    Digit(u8),
+    Candidates(Mask16),
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct GridState {
+    grid: [CellState; 81],
 }

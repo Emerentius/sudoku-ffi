@@ -66,13 +66,14 @@ struct HiddenSingle {
   HouseType house_type;
 };
 
-using Mask16 = uint16_t;
-
 struct LockedCandidates {
   uint8_t miniline;
-  Mask16 digits;
+  uint8_t digit;
+  bool is_pointing;
   Conflicts conflicts;
 };
+
+using Mask16 = uint16_t;
 
 struct NakedSubsets {
   uint8_t house;
@@ -121,8 +122,33 @@ struct Deductions {
   _Deductions *_0;
 };
 
+struct CellState {
+  enum class Tag {
+    Digit,
+    Candidates,
+  };
+
+  struct Digit_Body {
+    uint8_t _0;
+  };
+
+  struct Candidates_Body {
+    Mask16 _0;
+  };
+
+  Tag tag;
+  union {
+    Digit_Body digit;
+    Candidates_Body candidates;
+  };
+};
+
 struct StrategySolver {
   _StrategySolver *_0;
+};
+
+struct GridState {
+  CellState grid[81];
 };
 
 // The central structure of the library. Represents a classical 9x9 sudoku.
@@ -152,8 +178,10 @@ size_t deductions_len(Deductions deductions);
 // counting from lowest to most significant bit.
 //
 // It's undefined behaviour to call this on an already filled cell or with `cell > 80`.
-uint16_t strategy_solver_cell_candidates(StrategySolver solver,
-                                         uint8_t cell);
+CellState strategy_solver_cell_state(StrategySolver solver,
+                                     uint8_t cell);
+
+StrategySolver strategy_solver_from_grid_state(GridState grid_state);
 
 // Try to insert `entry`.
 //
