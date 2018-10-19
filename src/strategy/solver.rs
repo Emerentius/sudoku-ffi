@@ -117,7 +117,7 @@ pub extern "C" fn strategy_solver_cell_candidates(solver: StrategySolver, cell: 
     let solver = unsafe { &mut *solver };
 
     match solver.cell_state(Cell::new(cell)) {
-        RCellState::Digit(digit) => unimplemented!(),
+        RCellState::Digit(_) => unimplemented!(),
         RCellState::Candidates(candidates) => {
             let mut mask = 0;
             for digit in candidates {

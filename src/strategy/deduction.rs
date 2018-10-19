@@ -23,18 +23,14 @@ impl<'a> From<RDeduction<&'a [RCandidate]>> for Deduction {
 
         use self::RDeduction::*;
         match deduction {
-            Given(candidate) => {
-                tag = DeductionTag::Given;
-                data = DeductionData { given: self::Given { candidate: candidate.into() } };
-            }
             NakedSingles(candidate) => {
-                tag = DeductionTag::NakedSingle;
-                data = DeductionData { naked_single: NakedSingle { candidate: candidate.into() } };
+                tag = DeductionTag::NakedSingles;
+                data = DeductionData { naked_singles: NakedSingle { candidate: candidate.into() } };
             }
             HiddenSingles(candidate, house_type) => {
-                tag = DeductionTag::HiddenSingle;
+                tag = DeductionTag::HiddenSingles;
                 data = DeductionData {
-                    hidden_single: HiddenSingle {
+                    hidden_singles: HiddenSingle {
                         candidate: candidate.into(),
                         house_type: house_type.into(),
                     }
@@ -51,21 +47,10 @@ impl<'a> From<RDeduction<&'a [RCandidate]>> for Deduction {
                     }
                 };
             }
-            NakedSubsets { house, positions, digits, conflicts } => {
-                tag = DeductionTag::NakedSubset;
+            Subsets { house, positions, digits, conflicts } => {
+                tag = DeductionTag::Subsets;
                 data = DeductionData {
-                    naked_subsets: self::NakedSubsets {
-                        house: house.get(),
-                        digits: mask_of_digits(digits),
-                        positions: mask_of_positions_house(positions),
-                        conflicts: conflicts.into(),
-                    }
-                }
-            }
-            HiddenSubsets { house, digits, positions, conflicts } => {
-                tag = DeductionTag::HiddenSubset;
-                data = DeductionData {
-                    hidden_subsets: self::HiddenSubsets {
+                    subsets: self::Subsets {
                         house: house.get(),
                         digits: mask_of_digits(digits),
                         positions: mask_of_positions_house(positions),
@@ -84,6 +69,7 @@ impl<'a> From<RDeduction<&'a [RCandidate]>> for Deduction {
                     }
                 }
             }
+            /*
             SinglesChain(conflicts) => {
                 tag = DeductionTag::SinglesChain;
                 data = DeductionData {
@@ -92,6 +78,7 @@ impl<'a> From<RDeduction<&'a [RCandidate]>> for Deduction {
                     }
                 }
             }
+            */
             __NonExhaustive => unreachable!(),
         }
 
@@ -102,33 +89,23 @@ impl<'a> From<RDeduction<&'a [RCandidate]>> for Deduction {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub enum DeductionTag {
-    Given,
-    NakedSingle,
-    HiddenSingle,
+    NakedSingles,
+    HiddenSingles,
     LockedCandidates,
-    NakedSubset,
-    HiddenSubset,
+    Subsets,
     BasicFish,
-    SinglesChain,
+    //SinglesChain,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union DeductionData {
-    given: Given,
-    naked_single: NakedSingle,
-    hidden_single: HiddenSingle,
+    naked_singles: NakedSingle,
+    hidden_singles: HiddenSingle,
     locked_candidates: LockedCandidates,
-    naked_subsets: NakedSubsets,
-    hidden_subsets: HiddenSubsets,
+    subsets: Subsets,
     basic_fish: BasicFish,
-    singles_chain: SinglesChain,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct Given {
-    candidate: Candidate,
+    //singles_chain: SinglesChain,
 }
 
 #[repr(C)]
@@ -211,19 +188,10 @@ fn mask_of_lines(set: Set<Line>) -> Mask32 {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct NakedSubsets {
+pub struct Subsets {
     house: u8,
     positions: Mask16,
     digits: Mask16,
-    conflicts: Conflicts,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct HiddenSubsets {
-    house: u8,
-    digits: Mask16,
-    positions: Mask16,
     conflicts: Conflicts,
 }
 
@@ -236,11 +204,13 @@ pub struct BasicFish {
     conflicts: Conflicts,
 }
 
+/*
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SinglesChain {
     conflicts: Conflicts,
 }
+*/
 
 #[repr(C)]
 #[derive(Clone, Copy)]

@@ -5,14 +5,11 @@
 #include <cstdlib>
 
 enum class DeductionTag {
-  Given,
-  NakedSingle,
-  HiddenSingle,
+  NakedSingles,
+  HiddenSingles,
   LockedCandidates,
-  NakedSubset,
-  HiddenSubset,
+  Subsets,
   BasicFish,
-  SinglesChain,
 };
 
 enum class HouseType {
@@ -34,7 +31,6 @@ enum class Strategy : uint8_t {
   XWing,
   Swordfish,
   Jellyfish,
-  SinglesChain,
 };
 
 struct _Deductions;
@@ -51,10 +47,6 @@ struct Candidate {
 struct Conflicts {
   const _RCandidate *ptr;
   size_t len;
-};
-
-struct Given {
-  Candidate candidate;
 };
 
 struct NakedSingle {
@@ -75,17 +67,10 @@ struct LockedCandidates {
 
 using Mask16 = uint16_t;
 
-struct NakedSubsets {
+struct Subsets {
   uint8_t house;
   Mask16 positions;
   Mask16 digits;
-  Conflicts conflicts;
-};
-
-struct HiddenSubsets {
-  uint8_t house;
-  Mask16 digits;
-  Mask16 positions;
   Conflicts conflicts;
 };
 
@@ -98,19 +83,12 @@ struct BasicFish {
   Conflicts conflicts;
 };
 
-struct SinglesChain {
-  Conflicts conflicts;
-};
-
 union DeductionData {
-  Given given;
-  NakedSingle naked_single;
-  HiddenSingle hidden_single;
+  NakedSingle naked_singles;
+  HiddenSingle hidden_singles;
   LockedCandidates locked_candidates;
-  NakedSubsets naked_subsets;
-  HiddenSubsets hidden_subsets;
+  Subsets subsets;
   BasicFish basic_fish;
-  SinglesChain singles_chain;
 };
 
 struct Deduction {

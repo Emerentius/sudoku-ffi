@@ -15,7 +15,7 @@ pub enum Strategy {
     XWing,
     Swordfish,
     Jellyfish,
-    SinglesChain,
+    //SinglesChain,
 }
 
 impl From<RStrategy> for Strategy {
@@ -34,7 +34,7 @@ impl From<RStrategy> for Strategy {
             RStrategy::XWing => XWing,
             RStrategy::Swordfish => Swordfish,
             RStrategy::Jellyfish => Jellyfish,
-            RStrategy::SinglesChain => SinglesChain,
+            //RStrategy::SinglesChain => SinglesChain,
             RStrategy::__NonExhaustive => unreachable!(),
         }
     }
@@ -57,7 +57,7 @@ impl From<Strategy> for RStrategy {
             XWing => RStrategy::XWing,
             Swordfish => RStrategy::Swordfish,
             Jellyfish => RStrategy::Jellyfish,
-            SinglesChain => RStrategy::SinglesChain,
+            //SinglesChain => RStrategy::SinglesChain,
         }
     }
 }
