@@ -1,8 +1,10 @@
 #ifndef sudoku_ffi_h
 #define sudoku_ffi_h
 
+#include <cstdarg>
 #include <cstdint>
 #include <cstdlib>
+#include <new>
 
 enum class DeductionTag {
   NakedSingles,
@@ -10,6 +12,9 @@ enum class DeductionTag {
   LockedCandidates,
   Subsets,
   BasicFish,
+  Fish,
+  Wing,
+  AvoidableRectangle,
 };
 
 enum class HouseType {
@@ -31,6 +36,11 @@ enum class Strategy : uint8_t {
   XWing,
   Swordfish,
   Jellyfish,
+  XyWing,
+  XyzWing,
+  MutantSwordfish,
+  MutantJellyfish,
+  AvoidableRectangles,
 };
 
 struct _Deductions;
@@ -83,12 +93,38 @@ struct BasicFish {
   Conflicts conflicts;
 };
 
+struct Fish {
+  uint8_t digit;
+  Mask32 base;
+  Mask32 cover;
+  Conflicts conflicts;
+};
+
+using Mask128 = uint64_t[2];
+
+struct Wing {
+  uint8_t hinge;
+  Mask16 hinge_digits;
+  Mask128 pincers;
+  Conflicts conflicts;
+};
+
+struct AvoidableRectangle {
+  /// The 2 rows and 2 columns forming the avoidable rectangle.
+  /// The cells where they overlap always occupy 2 blocks in one chute.
+  Mask32 lines;
+  Conflicts conflicts;
+};
+
 union DeductionData {
   NakedSingle naked_singles;
   HiddenSingle hidden_singles;
   LockedCandidates locked_candidates;
   Subsets subsets;
   BasicFish basic_fish;
+  Fish fish;
+  Wing wing;
+  AvoidableRectangle avoidable_rectangle;
 };
 
 struct Deduction {
@@ -129,9 +165,9 @@ struct GridState {
   CellState grid[81];
 };
 
-// The central structure of the library. Represents a classical 9x9 sudoku.
-// All instances of this MUST be valid sudoku grids, but not necessarily solvable or
-// uniquely solvable.
+/// The central structure of the library. Represents a classical 9x9 sudoku.
+/// All instances of this MUST be valid sudoku grids, but not necessarily solvable or
+/// uniquely solvable.
 struct Sudoku {
   uint8_t _0[81];
 };
@@ -152,64 +188,64 @@ Deduction deductions_get(Deductions deductions, size_t idx);
 
 size_t deductions_len(Deductions deductions);
 
-// Returns the remaining possible candidates in `cell` as a 9-bit mask. The nth bit stands for the nth digit,
-// counting from lowest to most significant bit.
-//
-// It's undefined behaviour to call this on an already filled cell or with `cell > 80`.
+/// Returns the remaining possible candidates in `cell` as a 9-bit mask. The nth bit stands for the nth digit,
+/// counting from lowest to most significant bit.
+///
+/// It's undefined behaviour to call this on an already filled cell or with `cell > 80`.
 Mask16 strategy_solver_cell_candidates(StrategySolver solver,
                                        uint8_t cell);
 
 StrategySolver strategy_solver_from_grid_state(GridState grid_state);
 
-// Try to insert `entry`.
-//
-// Returns `false` if the cell is already filled, `true` otherwise.
+/// Try to insert `entry`.
+///
+/// Returns `false` if the cell is already filled, `true` otherwise.
 bool strategy_solver_insert_entry(StrategySolver solver, Candidate entry);
 
 StrategySolver strategy_solver_new(Sudoku sudoku);
 
-// This consumes the solver
+/// This consumes the solver
 StrategySolvingResult strategy_solver_solve(StrategySolver solver,
                                             const Strategy *strategies,
                                             size_t len);
 
-// This function is not threadsafe
+/// This function is not threadsafe
 Sudoku strategy_solver_to_sudoku(StrategySolver solver);
 
-// Returns a pointer to the bytes of the sudoku.
-// Empty cells are denoted by 0, clues by the numbers 1-9
+/// Returns a pointer to the bytes of the sudoku.
+/// Empty cells are denoted by 0, clues by the numbers 1-9
 const uint8_t *sudoku_as_ptr(const Sudoku *sudoku);
 
-// Counts sudoku solutions up to `limit`
+/// Counts sudoku solutions up to `limit`
 size_t sudoku_count_at_most(Sudoku sudoku, size_t limit);
 
-// Creates a sudoku from an array of 81 bytes. All numbers must be below 10.
-// Empty cells are denoted by 0, clues by the numbers 1-9.
-// If any cell contains invalid entries, an empty sudoku will be returned.
+/// Creates a sudoku from an array of 81 bytes. All numbers must be below 10.
+/// Empty cells are denoted by 0, clues by the numbers 1-9.
+/// If any cell contains invalid entries, an empty sudoku will be returned.
 Sudoku sudoku_from_bytes(const uint8_t *bytes);
 
-// Generates a random, valid, solved `Sudoku`.
+/// Generates a random, valid, solved `Sudoku`.
 Sudoku sudoku_generate_filled();
 
-// Generates a random, uniquely solvable, minimal `Sudoku`. Most sudokus generated this way are very easy.
+/// Generates a random, uniquely solvable, minimal `Sudoku`. Most sudokus generated this way are very easy.
 Sudoku sudoku_generate_unique();
 
-// Checks whether the sudoku is solved, i.e. completely filled in a valid way.
+/// Checks whether the sudoku is solved, i.e. completely filled in a valid way.
 bool sudoku_is_solved(Sudoku sudoku);
 
-// Checks that all cells contain values from 0-9 (inclusive)
-// (Unique) solvability is not tested.
+/// Checks that all cells contain values from 0-9 (inclusive)
+/// (Unique) solvability is not tested.
 bool sudoku_is_valid_grid(Sudoku sudoku);
 
-// Performs symmetry transformations that result in a different sudoku
-// with the same solution count and difficulty.
+/// Performs symmetry transformations that result in a different sudoku
+/// with the same solution count and difficulty.
 void sudoku_shuffle(Sudoku *sudoku);
 
-// Finds and counts up to `limit` solutions and writes them into `solutions_buf` up to its capacity of `len_buf`.
-// Any additional solutions `> len_buf` but `<= limit` will be counted but not saved.
-// The number of found solutions is stored in `n_found`.
-//
-// Immediately returns `false` if `solutions_buf` or `n_found` is null, otherwise `true`.
+/// Finds and counts up to `limit` solutions and writes them into `solutions_buf` up to its capacity of `len_buf`.
+/// Any additional solutions `> len_buf` but `<= limit` will be counted but not saved.
+/// The number of found solutions is stored in `n_found`.
+///
+/// Immediately returns `false` if `solutions_buf` or `n_found` is null, otherwise `true`.
 bool sudoku_solve_at_most(Sudoku *solutions_buf,
                           size_t *n_found,
                           size_t len_buf,
