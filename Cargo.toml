@@ -10,8 +10,8 @@ libc = "0.2.41"
 
 [dependencies.sudoku]
 version = "0.7.0"
-#git = "https://github.com/emerentius/sudoku"
-#rev = "833f55eee011fc2dcacea942a6e5c3e42251824f"
+git = "https://github.com/emerentius/sudoku"
+rev = "badea560ff59122ce98f03a33b3e6a51f78477db"
 
 [lib]
 crate-type = ["cdylib", "staticlib"]

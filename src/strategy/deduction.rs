@@ -3,7 +3,7 @@ use ::sudoku::board::positions::HouseType as RHouseType;
 use ::sudoku::board::Candidate as RCandidate;
 use ::sudoku::bitset::Set;
 use ::sudoku::board::Digit;
-use ::sudoku::board::positions::{Position, House, Line};
+use ::sudoku::board::positions::{Cell, Position, House, Line};
 use ::core::slice;
 use ::libc::size_t;
 
@@ -69,6 +69,37 @@ impl<'a> From<RDeduction<&'a [RCandidate]>> for Deduction {
                     }
                 }
             }
+            Fish { digit, base, cover, conflicts } => {
+                tag = DeductionTag::Fish;
+                data = DeductionData {
+                    fish: self::Fish {
+                        digit: digit.get(),
+                        base: base.bits(),
+                        cover: cover.bits(),
+                        conflicts: conflicts.into(),
+                    }
+                }
+            }
+            Wing { hinge, hinge_digits, pincers, conflicts } => {
+                tag = DeductionTag::Wing;
+                data = DeductionData {
+                    wing: self::Wing {
+                        hinge: hinge.get(),
+                        hinge_digits: hinge_digits.bits(),
+                        pincers: mask_of_cells(pincers),
+                        conflicts: conflicts.into(),
+                    }
+                }
+            }
+            AvoidableRectangle { lines, conflicts } => {
+                tag = DeductionTag::AvoidableRectangle;
+                data = DeductionData {
+                    avoidable_rectangle: self::AvoidableRectangle {
+                        lines: lines.bits(),
+                        conflicts: conflicts.into(),
+                    }
+                }
+            }
             /*
             SinglesChain(conflicts) => {
                 tag = DeductionTag::SinglesChain;
@@ -94,6 +125,9 @@ pub enum DeductionTag {
     LockedCandidates,
     Subsets,
     BasicFish,
+    Fish,
+    Wing,
+    AvoidableRectangle,
     //SinglesChain,
 }
 
@@ -105,6 +139,9 @@ pub union DeductionData {
     locked_candidates: LockedCandidates,
     subsets: Subsets,
     basic_fish: BasicFish,
+    fish: Fish,
+    wing: Wing,
+    avoidable_rectangle: AvoidableRectangle,
     //singles_chain: SinglesChain,
 }
 
@@ -152,7 +189,11 @@ pub struct LockedCandidates {
 // bitmask
 type Mask16 = u16;
 type Mask32 = u32;
+type Mask128 = [u64; 2];
 
+// TODO: make sure there are no endian-issues
+//       and use .bits() instead of manual set conversion
+//
 // as_index() isn't on a trait, so these need two functions for now
 fn mask_of_digits(set: Set<Digit>) -> Mask16 {
     let mut mask = 0;
@@ -186,6 +227,15 @@ fn mask_of_lines(set: Set<Line>) -> Mask32 {
     mask
 }
 
+fn mask_of_cells(set: Set<Cell>) -> Mask128 {
+    let mut mask = [0; 2];
+    for cell in set {
+        let idx = cell.as_index();
+        mask[idx / 64] |= 1 << idx % 64;
+    }
+    mask
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Subsets {
@@ -201,6 +251,33 @@ pub struct BasicFish {
     lines: Mask32,
     positions: Mask16,
     digit: u8,
+    conflicts: Conflicts,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Fish {
+    digit: u8,
+    base: Mask32, // set of houses
+    cover: Mask32, // set of houses
+    conflicts: Conflicts,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Wing {
+    hinge: u8, // cell
+    hinge_digits: Mask16,
+    pincers: Mask128, // mask of cells
+    conflicts: Conflicts,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AvoidableRectangle {
+    /// The 2 rows and 2 columns forming the avoidable rectangle.
+    /// The cells where they overlap always occupy 2 blocks in one chute.
+    lines: Mask32, // mask of lines
     conflicts: Conflicts,
 }
 
