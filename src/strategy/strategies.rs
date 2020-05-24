@@ -1,6 +1,6 @@
 use ::sudoku::strategy::Strategy as RStrategy;
 
-#[repr(C, u8)]
+#[repr(u8)]
 #[derive(Clone, Copy)]
 pub enum Strategy {
     NakedSingles,
